@@ -1,0 +1,19 @@
+language: python
+python:
+  - "2.7"
+  - "3.5"
+
+# env:
+#   - VAR=var
+
+# command to install dependencies
+install:
+  - pip install -r requirements.txt
+  - pip install -r test_requirements.txt
+
+# command to run tests
+script:
+  - python server.py check
+  - coverage run server.py check
+
+after_success: coveralls
