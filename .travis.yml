@@ -12,8 +12,8 @@ install:
   - pip install -r test_requirements.txt
 
 # command to run tests
-script:
-  - python server.py check
-  - coverage run server.py check
+# script:
+#   - python src/server.py test
+#   - coverage run src/server.py test
 
 after_success: coveralls
