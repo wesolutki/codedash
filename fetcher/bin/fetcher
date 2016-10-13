@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+
+const fs = require('fs-promise');
+const _ = require('underscore');
+
+var github = {
+    github: new require("github")({
+        // debug: true,
+        protocol: "https",
+        host: "api.github.com",
+        pathPrefix: "",
+        headers: {
+            "user-agent": "Codedash"
+        },
+        Promise: require('bluebird'),
+        followRedirects: false,
+        timeout: 5000
+    }),
+    search: function(page, stars) {
+        return this.github.search.repos({
+            q: "stars:" + stars + " language:JavaScript",
+            page: page,
+            per_page: 100,
+        }).then(function(res) {
+            return res;
+        })
+    }
+}
+
+var repos = {
+    path: 'F:/codedash/',
+    saveItems: function(items) {
+        var createDir = function(path) {
+            // console.log('creating dir: ', path);
+            return fs.mkdir(path).catch(function(){return path;});
+        }
+        var writeItem = function(path, item) {
+            path += '/info.json'
+            // console.log('writing item: ', path);
+            return fs.writeFile(path, JSON.stringify(item), 'utf8');
+        }
+
+        Promise.all(items.map(function(item) {
+            const splitted = item.full_name.split('/');
+            const user = splitted[0];
+            const repo = splitted[1];
+            var user_path = repos.path + user;
+            var repo_path = user_path + '/' + repo;  
+            return createDir(user_path)
+                .then(createDir(repo_path))
+                .then(writeItem(repo_path, item));
+        })).then(function() {
+            console.log('Successfully complete!');
+        }).catch(function(err) {
+            console.log('Error!', JSON.stringify(err));
+        })
+    }
+}
+
+var searchAndSave = function(page, stars) {
+    console.log('searchAndSave ', page, stars);
+    return github.search(page, stars)
+        .then(function (res) {  
+            return repos.saveItems(res.items)
+                .then(function() {
+                    return res;
+                })
+        });
+}
+
+var fetchPossible = function(stars) {
+    return searchAndSave(1, stars)
+        .then(function (res) {
+            var otherPages = function(total) {
+                const GITHUB_MAX_PER_PAGE = 100;
+                const GITHUB_MAX_REPOS = 1000;
+                const page_count = Math.min(
+                    res.total_count % GITHUB_MAX_PER_PAGE,
+                    (GITHUB_MAX_REPOS / GITHUB_MAX_PER_PAGE) - 1);            
+                return _.range(2, 3 + page_count);
+            };
+            return Promise.all(otherPages(res.total_count).map(function(page) {
+                return searchAndSave(page, stars);
+            }));
+        });
+};
+
+var starsRange = function(begin, end, step) {
+    return _.range((end-begin)/step).map(function(idx) {
+        return '' + (begin + step * idx) + '..' + (begin + step * (idx + 1));
+    })
+}
+
+var stars_options = ['>=2500'].concat(starsRange(2000, 2500, 500), starsRange(1500, 2000, 250), starsRange(1000, 1500, 100), starsRange(500, 1000, 50))
+Promise.all(stars_options.map(function(stars) {
+    return fetchPossible(stars);
+}));

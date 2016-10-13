@@ -1,0 +1,6 @@
+{
+    storages: [api: 'github'],
+    paths: {
+        download: 'download',
+    }
+}
